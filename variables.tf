@@ -1,7 +1,7 @@
 variable "db_name" {
   description = "Nom de la base de données PostgreSQL."
   type        = string
-  default     = "devops_db_v2"
+  default     = "devops_db_v3"
 }
 
 variable "db_user" {

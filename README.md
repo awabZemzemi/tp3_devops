@@ -66,7 +66,7 @@ cp terraform.tfvars.example terraform.tfvars
 # Adapter les valeurs de terraform.tfvars avant le déploiement.
 ```
 
-Les valeurs par défaut sont `devops_db_v2`, `devops_user`, HTTP `8080` et PostgreSQL `5432`. Le nom de la base a été modifié après le premier commit pour déclencher un deuxième pipeline, conformément à la Partie II. Le mot de passe par défaut est exclusivement une valeur de démonstration. On peut aussi injecter une variable sans l'écrire dans les fichiers suivis :
+Les valeurs par défaut sont `devops_db_v3`, `devops_user`, HTTP `8080` et PostgreSQL `5432`. Le nom de la base a été modifié pour vérifier le déclenchement automatique du pipeline sur un nouveau push, conformément à la Partie II. Le mot de passe par défaut est exclusivement une valeur de démonstration. On peut aussi injecter une variable sans l'écrire dans les fichiers suivis :
 
 ```bash
 read -rsp 'Mot de passe PostgreSQL : ' TF_VAR_db_password
@@ -96,7 +96,7 @@ L'état reste dans le checkout pendant le job ; les étapes le partagent, puis D
 
 ### Validation d'un deuxième push
 
-Le deuxième commit du TP modifie le défaut de `db_name` dans `variables.tf`, de `devops_db` vers `devops_db_v2`. Pour reproduire un nouveau changement, passer de `devops_db_v2` à `devops_db_v3`, puis :
+Le test utilise un premier run réussi avec `devops_db_v2`, puis un push qui modifie le défaut de `db_name` en `devops_db_v3`. Pour reproduire un nouveau changement, passer de `devops_db_v3` à `devops_db_v4`, puis :
 
 ```bash
 git add variables.tf

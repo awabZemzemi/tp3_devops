@@ -60,7 +60,7 @@ Apply n'utilise aucune condition autorisant une exécution après échec : le co
 
 ### Validation d'une modification
 
-Le défaut de `db_name` a été modifié de `devops_db` vers `devops_db_v2` dans `variables.tf` après le premier commit et poussé sur `main`. Chaque run hébergé déploie la valeur du commit, puis `scripts/verify-ci-update.sh` lui ajoute le suffixe `_ci` et produit un plan de remplacement. Le script vérifie le changement d'identifiant du conteneur, le nom de la nouvelle base avec SQL et l'idempotence après mise à jour.
+Le défaut de `db_name` a été modifié de `devops_db` vers `devops_db_v2` après le premier commit. Après un premier run hébergé réussi avec `devops_db_v2`, un nouveau push modifie ce défaut en `devops_db_v3` pour vérifier à nouveau le déclenchement automatique. Chaque run hébergé déploie la valeur du commit, puis `scripts/verify-ci-update.sh` lui ajoute le suffixe `_ci` et produit un plan de remplacement. Le script vérifie le changement d'identifiant du conteneur, le nom de la nouvelle base avec SQL et l'idempotence après mise à jour.
 
 **Validation locale réellement exécutée :** `bash scripts/verify-update.sh` a terminé avec le code de retour **0**. Le script utilise deux plans successifs avec `-var='db_name=devops_db'`, puis `-var='db_name=devops_db_v2'`. Le second Plan annonce **1 à créer, 0 à modifier, 1 à détruire** ; Apply confirme **1 ressource ajoutée et 1 détruite**. L'identifiant du conteneur PostgreSQL change, `SELECT current_database()` retourne `devops_db_v2`, les contrôles HTTP et SQL réussissent, puis Destroy supprime les quatre ressources.
 
@@ -72,7 +72,7 @@ Le défaut de `db_name` a été modifié de `devops_db` vers `devops_db_v2` dans
 | Identifiants différents et nouvelle base vérifiée | `evidence/09-update-validation.log` |
 | Nettoyage après l'essai | `evidence/10-update-destroy.log` |
 
-**Statut de la validation GitHub Actions :** le workflow utilise désormais une VM GitHub hébergée. Les résultats seront consignés avec les liens vers les runs terminés ; aucun succès distant n'est revendiqué avant leur exécution réelle.
+**Validation GitHub Actions réellement exécutée :** le [run 43847439404](https://github.com/awabZemzemi/tp3_devops/actions/runs/43847439404), déclenché automatiquement par le push du commit `1c1aff4`, est **réussi**. Le job a terminé en **43 secondes**. Toutes les étapes sont réussies, y compris Init, Plan, Apply, HTTP/SQL, idempotence, remplacement PostgreSQL, publication des preuves et Destroy avec vérification d'un état vide. La base mise à jour est `devops_db_v2_ci`. Les preuves téléchargées sont conservées sous `evidence/github-run-43847439404/` et dans les artefacts du run.
 
 La suppression du volume anonyme lors du remplacement rend ce test jetable. Aucun volume persistant n'est prévu dans le sujet. En contexte réel, changer une variable d'initialisation PostgreSQL ne suffit pas à modifier une base déjà initialisée conservée sur un volume.
 
