@@ -1,0 +1,7 @@
+HTTP OK : http://localhost:8080/
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Terraform IaC</title></head><body><h1>Application Deployed via Terraform IaC!</h1></body></html>
+tp-db-postgres : healthy
+tp-app-web : healthy
+PostgreSQL : connexion authentifiée et SELECT 1 réussis.
+Identifiant PostgreSQL modifié : d915958586f69e03c85cdb5448a6c493cafd05defdd17d54a73c677bb1be3b38 → 68da050afe7081e12ca7a67bb9894bc0844fc080b260704e88675c7e0d649c12
+Base vérifiée par SQL : devops_db_v3_ci

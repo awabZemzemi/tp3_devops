@@ -72,7 +72,14 @@ Le défaut de `db_name` a été modifié de `devops_db` vers `devops_db_v2` apr�
 | Identifiants différents et nouvelle base vérifiée | `evidence/09-update-validation.log` |
 | Nettoyage après l'essai | `evidence/10-update-destroy.log` |
 
-**Validation GitHub Actions réellement exécutée :** le [run 43847439404](https://github.com/awabZemzemi/tp3_devops/actions/runs/43847439404), déclenché automatiquement par le push du commit `1c1aff4`, est **réussi**. Le job a terminé en **43 secondes**. Toutes les étapes sont réussies, y compris Init, Plan, Apply, HTTP/SQL, idempotence, remplacement PostgreSQL, publication des preuves et Destroy avec vérification d'un état vide. La base mise à jour est `devops_db_v2_ci`. Les preuves téléchargées sont conservées sous `evidence/github-run-43847439404/` et dans les artefacts du run.
+**Validation GitHub Actions réellement exécutée :** deux pushes successifs ont déclenché et terminé le pipeline avec succès.
+
+| Push | Commit | Base du commit → base testée après remplacement | Run GitHub Actions | Résultat du job |
+| --- | --- | --- | --- | --- |
+| Déploiement initial hébergé | `1c1aff4` | `devops_db_v2` → `devops_db_v2_ci` | [43847439404](https://github.com/awabZemzemi/tp3_devops/actions/runs/43847439404) | Réussi, 43 s |
+| Modification de `variables.tf` | `1ce2039` | `devops_db_v3` → `devops_db_v3_ci` | [43847775404](https://github.com/awabZemzemi/tp3_devops/actions/runs/43847775404) | Réussi, 43 s |
+
+Dans les deux runs, toutes les étapes sont réussies : Init, Validate, Plan, Apply, HTTP/SQL, idempotence, remplacement PostgreSQL, publication des preuves et Destroy avec vérification d'un état vide. Le plan de mise à jour annonce **1 création et 1 destruction** ; Apply confirme ces actions ; SQL confirme le nouveau nom ; le dernier plan annonce **No changes**. Les preuves téléchargées sont conservées sous `evidence/github-run-43847439404/` et `evidence/github-run-43847775404/`, ainsi que dans les artefacts de chaque run.
 
 La suppression du volume anonyme lors du remplacement rend ce test jetable. Aucun volume persistant n'est prévu dans le sujet. En contexte réel, changer une variable d'initialisation PostgreSQL ne suffit pas à modifier une base déjà initialisée conservée sur un volume.
 

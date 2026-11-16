@@ -1,0 +1,12 @@
+docker_container.db_container: Destroying... [id=d915958586f69e03c85cdb5448a6c493cafd05defdd17d54a73c677bb1be3b38]
+docker_container.db_container: Destruction complete after 0s
+docker_container.db_container: Creating...
+docker_container.db_container: Creation complete after 6s [id=68da050afe7081e12ca7a67bb9894bc0844fc080b260704e88675c7e0d649c12]
+
+Apply complete! Resources: 1 added, 0 changed, 1 destroyed.
+
+Outputs:
+
+app_access_url = "http://localhost:8080/"
+app_container_name = "tp-app-web"
+db_container_name = "tp-db-postgres"

@@ -1,0 +1,9 @@
+docker_image.postgres_image: Refreshing state... [id=sha256:3cccc725163a95947178f4da5e9bf16add75cb286170ac5a2cd2f6513534955dpostgres:latest]
+docker_image.app_image: Refreshing state... [id=sha256:8ef290e485717f679b01213c6e5db8dccee97cf321d0af32c618a8c74aab2045tp-web-app:latest]
+docker_container.db_container: Refreshing state... [id=68da050afe7081e12ca7a67bb9894bc0844fc080b260704e88675c7e0d649c12]
+docker_container.app_container: Refreshing state... [id=c678dbb64fd98f2afdcb69cc7e9095275b9134cd453bee6e2d4a58fde3571a38]
+
+No changes. Your infrastructure matches the configuration.
+
+Terraform has compared your real infrastructure against your configuration
+and found no differences, so no changes are needed.
