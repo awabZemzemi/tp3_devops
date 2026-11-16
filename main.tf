@@ -8,7 +8,7 @@ terraform {
     }
   }
 
-  # Local par défaut ; le pipeline fournit un chemin persistant sur le runner.
+  # État local au poste de travail ou à la VM temporaire du pipeline.
   backend "local" {}
 }
 

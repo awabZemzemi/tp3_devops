@@ -19,6 +19,7 @@ tp-iac-local/
 ├── scripts/verify.sh          # Vérification HTTP et SQL authentifiée
 ├── scripts/run-lifecycle.sh   # Cycle complet, journaux et nettoyage
 ├── scripts/verify-update.sh   # Preuve locale de remplacement de PostgreSQL
+├── scripts/verify-ci-update.sh # Remplacement vérifié dans le job CI
 ├── evidence/                  # Journaux réels de l'exécution locale
 └── RAPPORT.md                 # Résultats et réponses aux quatre questions
 ```
@@ -81,21 +82,17 @@ Les tags `alpine:latest` et `postgres:latest` sont imposés par le TP : leur con
 
 ## Pipeline GitHub Actions
 
-Le workflow s'exécute sur chaque push vers `main`, ainsi que manuellement avec `workflow_dispatch`. Il réalise, dans un seul job, Setup Terraform, Init, Validate, Plan, Apply du **plan enregistré**, puis les vérifications HTTP et SQL. Toute erreur de Plan empêche Apply. Les déploiements concurrents sont sérialisés.
+Le workflow s'exécute sur chaque push vers `main`, ainsi que manuellement avec `workflow_dispatch`. Il réalise, dans un seul job, Setup Terraform, Init, Validate, Plan, Apply du **plan enregistré**, puis les vérifications HTTP et SQL. Il vérifie aussi l'idempotence, remplace PostgreSQL après un changement de variable, et termine par Destroy. Toute erreur de Plan empêche Apply. Les exécutions sont sérialisées.
 
-Le runner est **self-hosted**, Linux x64, avec le label `iac-local`, et tourne sur la machine Docker cible. Ce choix permet de retrouver les mêmes conteneurs et le même état entre deux pushes. Un runner GitHub hébergé créerait les conteneurs sur une autre machine temporaire ; son `localhost` ne serait pas celui du poste de travail.
+Le runner est une **VM GitHub hébergée `ubuntu-24.04`**. Docker s'exécute sur cette VM temporaire : son `localhost` désigne le runner. Pour ouvrir l'application sur le poste de travail, utiliser les commandes de la section « Exécution locale ».
 
 ### Activation
 
-1. Créer ou choisir un dépôt GitHub privé et y pousser ce dossier comme racine du dépôt, pour que `.github/workflows/main.yml` soit détecté.
-2. Dans **Settings → Actions → Runners → New self-hosted runner**, sélectionner Linux x64 et suivre les commandes affichées par GitHub. Pendant la configuration, ajouter le label `iac-local` ; démarrer le runner avec `./run.sh` ou le service proposé par GitHub.
-3. Vérifier que le compte exécutant le runner peut utiliser `docker info`, Bash et curl. Le runner doit rester sur la même machine et conserver son répertoire de travail entre les exécutions.
-4. Facultativement, ajouter **Settings → Secrets and variables → Actions → New repository secret**, nommé `TF_VAR_DB_PASSWORD`. Sans ce secret, le pipeline utilise le mot de passe de démonstration. Cette variable d'environnement a priorité sur le défaut de `variables.tf`.
-5. Effectuer un push vers `main` et consulter l'onglet **Actions**.
+1. Pousser ce dossier comme racine d'un dépôt GitHub, pour que `.github/workflows/main.yml` soit détecté. Le dépôt du TP est <https://github.com/awabZemzemi/tp3_devops>.
+2. Facultativement, ajouter **Settings → Secrets and variables → Actions → New repository secret**, nommé `TF_VAR_DB_PASSWORD`. Sans ce secret, le pipeline utilise le mot de passe de démonstration. Cette variable d'environnement a priorité sur le défaut de `variables.tf`.
+3. Effectuer un push vers `main` et consulter l'onglet **Actions**. Le workflow peut aussi être lancé par **Run workflow**.
 
-L'état du pipeline est situé dans `${RUNNER_WORKSPACE}/../tp-iac-state/${GITHUB_REPOSITORY}/terraform.tfstate`, hors du répertoire effacé par checkout. Son répertoire est créé avec des droits `700`. Le runner doit être sauvegardé si l'on veut conserver cet état. En cas de perte du runner, conserver et restaurer l'état avant tout nouveau déploiement.
-
-Le workflow garde les conteneurs actifs après Apply. Le script local du cycle complet, lui, les détruit pour terminer la Partie I. Ne pas gérer les mêmes noms de conteneurs depuis deux états différents : terminer le cycle local par Destroy avant le premier déploiement du pipeline.
+L'état reste dans le checkout pendant le job ; les étapes le partagent, puis Destroy le vide. La VM est ensuite supprimée par GitHub. Chaque nouveau push redéploie donc une infrastructure indépendante : aucun état ni conteneur ne persiste d'un run au suivant. La preuve d'un remplacement réel est effectuée au sein du même job, avec les mêmes ressources et le même état. Un déploiement durable sur une machine cible demanderait un runner ou un accès distant explicitement configuré, ainsi qu'un état persistant.
 
 ### Validation d'un deuxième push
 
@@ -107,7 +104,7 @@ git commit -m "Change demo database name to validate IaC redeployment"
 git push origin main
 ```
 
-Après un premier déploiement réussi, le Plan doit annoncer le remplacement du conteneur PostgreSQL, car ses variables d'environnement changent. Apply utilise le même état persistant, puis `verify.sh` vérifie la nouvelle base. Pour tester un changement de mot de passe, modifier le secret `TF_VAR_DB_PASSWORD`, puis relancer ou déclencher le workflow.
+Le nouveau run déploie la valeur modifiée depuis `variables.tf`, puis `scripts/verify-ci-update.sh` ajoute le suffixe `_ci` au nom de cette base et crée un nouveau plan. Ce plan doit annoncer **1 création et 1 destruction**, car l'environnement PostgreSQL change. Après Apply, le script vérifie le nouvel identifiant du conteneur et `SELECT current_database()`, puis un nouveau plan doit annoncer l'absence de changements. Les preuves sont jointes au run sous l'artefact `preuves-ci-N`. Pour tester un changement de mot de passe, modifier le secret `TF_VAR_DB_PASSWORD`, puis relancer ou déclencher le workflow.
 
 La mise à jour peut également être vérifiée localement avec `bash scripts/verify-update.sh`. Ce script déploie une base `devops_db`, la remplace par `devops_db_v2`, vérifie que l'identifiant du conteneur change et que SQL retourne la nouvelle base, puis détruit les ressources du TP. Il utilise des valeurs `-var` explicites et enregistre les preuves dans `evidence/08-*` à `evidence/10-*`.
 
@@ -127,20 +124,13 @@ git push -u origin main
 
 Si le commit initial existe déjà, ne pas le recréer. Ne pas publier `terraform.tfstate`, ses sauvegardes, `terraform.tfvars` ou `deployment.tfplan`.
 
-### Destruction après le pipeline
+### Nettoyage du pipeline
 
-Sur le runner, depuis le checkout utilisé par Actions, le backend configuré par Init pointe déjà vers l'état persistant :
-
-```bash
-terraform destroy -auto-approve
-terraform state list
-```
-
-Fournir les mêmes variables/secrets que pendant le déploiement. Si le checkout a disparu, refaire `terraform init -backend-config="path=/chemin/absolu/vers/terraform.tfstate"` avec le chemin exact de l'état du pipeline avant Destroy.
+L'étape Destroy utilise `if: always()` après une initialisation réussie. Elle nettoie donc aussi un déploiement partiellement appliqué ou un échec de validation. Le job vérifie ensuite que l'état est vide et qu'aucun conteneur du TP ne reste. Les plans binaires sont supprimés ; seuls les journaux texte de la mise à jour sont conservés comme artefacts pendant 14 jours.
 
 ## Références
 
 - [Provider Docker : image_id et construction](https://registry.terraform.io/providers/kreuzwerker/docker/latest/docs/resources/image).
 - [Provider Docker : conteneurs et contrôles de santé](https://registry.terraform.io/providers/kreuzwerker/docker/latest/docs/resources/container).
-- [GitHub : ajouter un runner self-hosted](https://docs.github.com/en/actions/how-tos/manage-runners/self-hosted-runners/add-runners).
+- [GitHub : runners hébergés](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
 - [Terraform : rôle de l'état](https://developer.hashicorp.com/terraform/language/state/purpose).

@@ -8,15 +8,14 @@ on:
 permissions:
   contents: read
 
-# Un état et un démon Docker partagés : les déploiements restent séquentiels.
+# Les exécutions du TP restent séquentielles et terminent par Destroy.
 concurrency:
   group: tp-iac-local-deployment
   cancel-in-progress: false
 
 jobs:
   deploy:
-    # Runner installé sur la machine Docker cible (voir README).
-    runs-on: [self-hosted, linux, x64, iac-local]
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
       TF_IN_AUTOMATION: "true"
@@ -41,12 +40,9 @@ jobs:
           docker info > /dev/null
           terraform fmt -check -recursive
 
-      - name: Init avec état persistant
-        run: |
-          state_dir="${RUNNER_WORKSPACE}/../tp-iac-state/${GITHUB_REPOSITORY}"
-          mkdir -p "$state_dir"
-          chmod 700 "$state_dir"
-          terraform init -input=false -lockfile=readonly -backend-config="path=${state_dir}/terraform.tfstate"
+      - name: Init
+        id: init
+        run: terraform init -input=false -lockfile=readonly
 
       - name: Validate
         run: terraform validate -no-color
@@ -61,6 +57,28 @@ jobs:
       - name: Validation HTTP et PostgreSQL
         run: bash scripts/verify.sh
 
-      - name: Supprimer le plan contenant des données sensibles
+      - name: Vérifier l'idempotence
+        run: terraform plan -input=false -detailed-exitcode
+
+      - name: Vérifier une mise à jour de la base
+        run: bash scripts/verify-ci-update.sh
+
+      - name: Destroy et vérification du nettoyage
+        if: always() && steps.init.outcome == 'success'
+        run: |
+          terraform destroy -auto-approve -input=false -lock-timeout=60s
+          test -z "$(terraform state list)"
+          test -z "$(docker ps -a --filter name=tp-app-web --filter name=tp-db-postgres --format '{{.Names}}')"
+
+      - name: Conserver les preuves de mise à jour
         if: always()
-        run: rm -f deployment.tfplan
+        uses: actions/upload-artifact@v4
+        with:
+          name: preuves-ci-${{ github.run_number }}
+          path: evidence/ci-*.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Supprimer les plans contenant des données sensibles
+        if: always()
+        run: rm -f deployment.tfplan update.tfplan
