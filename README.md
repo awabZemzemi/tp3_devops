@@ -18,6 +18,7 @@ tp-iac-local/
 ├── .github/workflows/main.yml # Push main → Init → Validate → Plan → Apply → vérification
 ├── scripts/verify.sh          # Vérification HTTP et SQL authentifiée
 ├── scripts/run-lifecycle.sh   # Cycle complet, journaux et nettoyage
+├── scripts/verify-update.sh   # Preuve locale de remplacement de PostgreSQL
 ├── evidence/                  # Journaux réels de l'exécution locale
 └── RAPPORT.md                 # Résultats et réponses aux quatre questions
 ```
@@ -64,7 +65,7 @@ cp terraform.tfvars.example terraform.tfvars
 # Adapter les valeurs de terraform.tfvars avant le déploiement.
 ```
 
-Les valeurs par défaut sont `devops_db`, `devops_user`, HTTP `8080` et PostgreSQL `5432`. Le mot de passe par défaut est exclusivement une valeur de démonstration. On peut aussi injecter une variable sans l'écrire dans les fichiers suivis :
+Les valeurs par défaut sont `devops_db_v2`, `devops_user`, HTTP `8080` et PostgreSQL `5432`. Le nom de la base a été modifié après le premier commit pour déclencher un deuxième pipeline, conformément à la Partie II. Le mot de passe par défaut est exclusivement une valeur de démonstration. On peut aussi injecter une variable sans l'écrire dans les fichiers suivis :
 
 ```bash
 read -rsp 'Mot de passe PostgreSQL : ' TF_VAR_db_password
@@ -98,7 +99,7 @@ Le workflow garde les conteneurs actifs après Apply. Le script local du cycle c
 
 ### Validation d'un deuxième push
 
-Pour prouver la mise à jour demandée en Partie II, modifier le défaut de `db_name` dans `variables.tf`, de `devops_db` vers `devops_db_v2` :
+Le deuxième commit du TP modifie le défaut de `db_name` dans `variables.tf`, de `devops_db` vers `devops_db_v2`. Pour reproduire un nouveau changement, passer de `devops_db_v2` à `devops_db_v3`, puis :
 
 ```bash
 git add variables.tf
@@ -106,7 +107,9 @@ git commit -m "Change demo database name to validate IaC redeployment"
 git push origin main
 ```
 
-Le Plan doit annoncer le remplacement du conteneur PostgreSQL, car ses variables d'environnement changent. Apply utilise le même état persistant, puis `verify.sh` vérifie la nouvelle base. Le rapport décrit aussi un essai local équivalent réellement exécuté. Pour tester un changement de mot de passe, modifier le secret `TF_VAR_DB_PASSWORD`, puis relancer ou déclencher le workflow.
+Après un premier déploiement réussi, le Plan doit annoncer le remplacement du conteneur PostgreSQL, car ses variables d'environnement changent. Apply utilise le même état persistant, puis `verify.sh` vérifie la nouvelle base. Pour tester un changement de mot de passe, modifier le secret `TF_VAR_DB_PASSWORD`, puis relancer ou déclencher le workflow.
+
+La mise à jour peut également être vérifiée localement avec `bash scripts/verify-update.sh`. Ce script déploie une base `devops_db`, la remplace par `devops_db_v2`, vérifie que l'identifiant du conteneur change et que SQL retourne la nouvelle base, puis détruit les ressources du TP. Il utilise des valeurs `-var` explicites et enregistre les preuves dans `evidence/08-*` à `evidence/10-*`.
 
 La base est volontairement jetable : le remplacement supprime son volume anonyme et initialise une nouvelle base. Une base de production demanderait une politique de persistance, des sauvegardes et une rotation SQL du mot de passe ; changer `POSTGRES_PASSWORD` sur un volume déjà initialisé ne modifierait pas le mot de passe existant.
 

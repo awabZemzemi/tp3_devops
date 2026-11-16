@@ -1,7 +1,7 @@
 docker_image.postgres_image: Refreshing state... [id=sha256:3cccc725163a95947178f4da5e9bf16add75cb286170ac5a2cd2f6513534955dpostgres:latest]
 docker_image.app_image: Refreshing state... [id=sha256:e2cf606e968373b75d597215646170af6b97ddfbd638edb93424d0b804873d2btp-web-app:latest]
-docker_container.db_container: Refreshing state... [id=97b1697d825582df4f2e807c6818276b4840dd5b4f68ed8d375658080399e75c]
-docker_container.app_container: Refreshing state... [id=c64dbf91821e166d42655e3069593c4d76c642a3f6e86e07abb53917a7686503]
+docker_container.db_container: Refreshing state... [id=fd0854f75c6f37822895e3a3510a5cba08f1fa615a2c61e42c635771a73a5c3a]
+docker_container.app_container: Refreshing state... [id=6156b66e62a4db6755dc2db222360a77e19292edcdf3ac78bdb7e218a3994a77]
 
 Terraform used the selected providers to generate the following execution
 plan. Resource actions are indicated with the following symbols:
@@ -26,8 +26,8 @@ Terraform will perform the following actions:
       - entrypoint                                  = [] -> null
       - env                                         = [] -> null
       - group_add                                   = [] -> null
-      - hostname                                    = "c64dbf91821e" -> null
-      - id                                          = "c64dbf91821e166d42655e3069593c4d76c642a3f6e86e07abb53917a7686503" -> null
+      - hostname                                    = "6156b66e62a4" -> null
+      - id                                          = "6156b66e62a4db6755dc2db222360a77e19292edcdf3ac78bdb7e218a3994a77" -> null
       - image                                       = "sha256:e2cf606e968373b75d597215646170af6b97ddfbd638edb93424d0b804873d2b" -> null
       - init                                        = false -> null
       - ipc_mode                                    = "private" -> null
@@ -46,7 +46,7 @@ Terraform will perform the following actions:
               - global_ipv6_prefix_length = 0
               - ip_address                = "172.17.0.3"
               - ip_prefix_length          = 16
-              - mac_address               = "1e:62:09:38:bc:95"
+              - mac_address               = "8a:69:a1:0c:37:de"
               - network_name              = "bridge"
                 # (2 unchanged attributes hidden)
             },
@@ -111,8 +111,8 @@ Terraform will perform the following actions:
         ] -> null
       - env                                         = (sensitive value) -> null
       - group_add                                   = [] -> null
-      - hostname                                    = "97b1697d8255" -> null
-      - id                                          = "97b1697d825582df4f2e807c6818276b4840dd5b4f68ed8d375658080399e75c" -> null
+      - hostname                                    = "fd0854f75c6f" -> null
+      - id                                          = "fd0854f75c6f37822895e3a3510a5cba08f1fa615a2c61e42c635771a73a5c3a" -> null
       - image                                       = "sha256:3cccc725163a95947178f4da5e9bf16add75cb286170ac5a2cd2f6513534955d" -> null
       - init                                        = false -> null
       - ipc_mode                                    = "private" -> null
@@ -131,7 +131,7 @@ Terraform will perform the following actions:
               - global_ipv6_prefix_length = 0
               - ip_address                = "172.17.0.2"
               - ip_prefix_length          = 16
-              - mac_address               = "26:51:b5:61:6a:6f"
+              - mac_address               = "8e:a8:88:aa:5d:9b"
               - network_name              = "bridge"
                 # (2 unchanged attributes hidden)
             },
@@ -214,7 +214,7 @@ Terraform will perform the following actions:
           - squash              = false -> null
           - suppress_output     = false -> null
           - tag                 = [] -> null
-          - use_legacy_builder  = false -> null
+          - use_legacy_builder  = true -> null
             # (15 unchanged attributes hidden)
         }
     }
@@ -234,12 +234,12 @@ Changes to Outputs:
   - app_access_url     = "http://localhost:8080/" -> null
   - app_container_name = "tp-app-web" -> null
   - db_container_name  = "tp-db-postgres" -> null
-docker_container.app_container: Destroying... [id=c64dbf91821e166d42655e3069593c4d76c642a3f6e86e07abb53917a7686503]
-docker_container.app_container: Destruction complete after 0s
+docker_container.app_container: Destroying... [id=6156b66e62a4db6755dc2db222360a77e19292edcdf3ac78bdb7e218a3994a77]
+docker_container.app_container: Destruction complete after 1s
 docker_image.app_image: Destroying... [id=sha256:e2cf606e968373b75d597215646170af6b97ddfbd638edb93424d0b804873d2btp-web-app:latest]
-docker_container.db_container: Destroying... [id=97b1697d825582df4f2e807c6818276b4840dd5b4f68ed8d375658080399e75c]
+docker_container.db_container: Destroying... [id=fd0854f75c6f37822895e3a3510a5cba08f1fa615a2c61e42c635771a73a5c3a]
 docker_image.app_image: Destruction complete after 0s
-docker_container.db_container: Destruction complete after 1s
+docker_container.db_container: Destruction complete after 0s
 docker_image.postgres_image: Destroying... [id=sha256:3cccc725163a95947178f4da5e9bf16add75cb286170ac5a2cd2f6513534955dpostgres:latest]
 docker_image.postgres_image: Destruction complete after 0s
 

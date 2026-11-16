@@ -146,7 +146,7 @@ Terraform will perform the following actions:
           + remove              = true
           + security_opt        = []
           + tag                 = []
-          + use_legacy_builder  = false
+          + use_legacy_builder  = true
             # (15 unchanged attributes hidden)
         }
     }

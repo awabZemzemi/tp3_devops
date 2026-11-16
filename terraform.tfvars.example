@@ -1,5 +1,5 @@
 # Copier vers terraform.tfvars (ignoré par Git), puis personnaliser.
-db_name           = "devops_db"
+db_name           = "devops_db_v2"
 db_user           = "devops_user"
 db_password       = "Replace_with_a_local_password!"
 db_port_external  = 5432

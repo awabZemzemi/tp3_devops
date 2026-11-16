@@ -51,8 +51,9 @@ resource "docker_image" "app_image" {
   name = "tp-web-app:latest"
 
   build {
-    context    = abspath(path.module)
-    dockerfile = "Dockerfile_app"
+    context            = abspath(path.module)
+    dockerfile         = "Dockerfile_app"
+    use_legacy_builder = true
   }
 
   triggers = {

@@ -17,7 +17,7 @@ Client SQL       → 127.0.0.1:5432 → tp-db-postgres:5432 → PostgreSQL
 
 Les services sont publiés uniquement sur l'interface locale. L'application sert une page statique ; elle n'effectue pas de requêtes à la base. Les deux services utilisent le réseau bridge Docker par défaut. La dépendance Terraform ordonne leur création ; la disponibilité réelle de PostgreSQL est vérifiée par `healthcheck` et `wait = true` avant la création de l'application.
 
-Le fichier `nginx.conf` définit explicitement le port 80 et la racine de la page. Les conteneurs référencent l'attribut `docker_image.*.image_id`, conformément au provider actuel. Les empreintes des fichiers de construction déclenchent la reconstruction de l'image lorsque le Dockerfile ou la configuration Nginx change.
+Le fichier `nginx.conf` définit explicitement le port 80 et la racine de la page. Les conteneurs référencent l'attribut `docker_image.*.image_id`, conformément au provider actuel. Les empreintes des fichiers de construction déclenchent la reconstruction de l'image lorsque le Dockerfile ou la configuration Nginx change. Le builder Docker classique est sélectionné explicitement : le poste n'a pas besoin d'une installation séparée de Buildx. Le cycle complet a été revérifié avec cette configuration.
 
 ## 2. Cycle de vie du déploiement local
 
@@ -60,9 +60,19 @@ Apply n'utilise aucune condition autorisant une exécution après échec : le co
 
 ### Validation d'une modification
 
-Le test consiste à modifier le défaut de `db_name` de `devops_db` vers `devops_db_v2`, puis à commiter et pousser ce changement sur `main`. Le résultat attendu est le remplacement du conteneur PostgreSQL et la création de la nouvelle base, suivis d'un contrôle SQL réussi.
+Le défaut de `db_name` a été modifié de `devops_db` vers `devops_db_v2` dans `variables.tf` après le premier commit. Le changement est poussé sur `main` pour déclencher un deuxième pipeline. Le résultat attendu, une fois le premier déploiement distant réussi, est le remplacement du conteneur PostgreSQL et la création de la nouvelle base, suivis d'un contrôle SQL réussi.
 
-**Statut de la validation GitHub Actions :** le workflow est fourni. L'enregistrement d'un runner local est en attente d'autorisation explicite, car il donne aux workflows du dépôt un accès d'exécution à la machine et à Docker. Aucun succès distant n'est revendiqué avant l'exécution réelle du pipeline.
+**Validation locale réellement exécutée :** `bash scripts/verify-update.sh` a terminé avec le code de retour **0**. Le script utilise deux plans successifs avec `-var='db_name=devops_db'`, puis `-var='db_name=devops_db_v2'`. Le second Plan annonce **1 à créer, 0 à modifier, 1 à détruire** ; Apply confirme **1 ressource ajoutée et 1 détruite**. L'identifiant du conteneur PostgreSQL change, `SELECT current_database()` retourne `devops_db_v2`, les contrôles HTTP et SQL réussissent, puis Destroy supprime les quatre ressources.
+
+| Preuve de mise à jour | Fichier |
+| --- | --- |
+| Déploiement de la base initiale | `evidence/08-update-baseline-apply.log` |
+| Plan de remplacement | `evidence/09-update-plan.log` |
+| Application du remplacement | `evidence/09-update-apply.log` |
+| Identifiants différents et nouvelle base vérifiée | `evidence/09-update-validation.log` |
+| Nettoyage après l'essai | `evidence/10-update-destroy.log` |
+
+**Statut de la validation GitHub Actions :** le workflow est publié et le [premier push a déclenché une exécution](https://github.com/awabZemzemi/tp3_devops/actions/runs/43845304443), en attente de runner. L'enregistrement d'un runner local est en attente d'autorisation explicite, car il donne aux workflows du dépôt un accès d'exécution à la machine et à Docker. Aucun succès distant n'est revendiqué avant l'exécution réelle du pipeline.
 
 La suppression du volume anonyme lors du remplacement rend ce test jetable. Aucun volume persistant n'est prévu dans le sujet. En contexte réel, changer une variable d'initialisation PostgreSQL ne suffit pas à modifier une base déjà initialisée conservée sur un volume.
 

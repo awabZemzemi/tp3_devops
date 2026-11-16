@@ -1,0 +1,16 @@
+docker_image.postgres_image: Creating...
+docker_image.app_image: Creating...
+docker_image.postgres_image: Creation complete after 0s [id=sha256:3cccc725163a95947178f4da5e9bf16add75cb286170ac5a2cd2f6513534955dpostgres:latest]
+docker_container.db_container: Creating...
+docker_image.app_image: Creation complete after 1s [id=sha256:e2cf606e968373b75d597215646170af6b97ddfbd638edb93424d0b804873d2btp-web-app:latest]
+docker_container.db_container: Creation complete after 6s [id=33b5d8c018936702bfe133f3c78d734d42d24264911b9cfd4381f3bf7d4b15d8]
+docker_container.app_container: Creating...
+docker_container.app_container: Creation complete after 3s [id=63f787987f3168813d8a32f1fc4329d7ef6c39a59cc613f8f7d15a397b8ebbf5]
+
+Apply complete! Resources: 4 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+app_access_url = "http://localhost:8080/"
+app_container_name = "tp-app-web"
+db_container_name = "tp-db-postgres"
