@@ -1,0 +1,111 @@
+# Rapport — Infrastructure as Code locale et pipeline CI/CD
+
+**Date :** 16 novembre 2026.
+
+**Environnement :** Linux x86_64, Terraform 1.16.0, Docker Engine 29.1.3, provider `kreuzwerker/docker` 4.7.0 verrouillé par `.terraform.lock.hcl`.
+
+**Dépôt :** <https://github.com/awabZemzemi/tp3_devops>.
+
+## 1. Objectif et architecture
+
+Terraform gère quatre ressources : deux images Docker et deux conteneurs. L'application est construite depuis `alpine:latest`, avec Nginx et la page « Application Deployed via Terraform IaC! ». PostgreSQL utilise `postgres:latest` et reçoit son utilisateur, son mot de passe et le nom de la base depuis `variables.tf`.
+
+```text
+Navigateur / curl → 127.0.0.1:8080 → tp-app-web:80 → Nginx → index.html
+Client SQL       → 127.0.0.1:5432 → tp-db-postgres:5432 → PostgreSQL
+```
+
+Les services sont publiés uniquement sur l'interface locale. L'application sert une page statique ; elle n'effectue pas de requêtes à la base. Les deux services utilisent le réseau bridge Docker par défaut. La dépendance Terraform ordonne leur création ; la disponibilité réelle de PostgreSQL est vérifiée par `healthcheck` et `wait = true` avant la création de l'application.
+
+Le fichier `nginx.conf` définit explicitement le port 80 et la racine de la page. Les conteneurs référencent l'attribut `docker_image.*.image_id`, conformément au provider actuel. Les empreintes des fichiers de construction déclenchent la reconstruction de l'image lorsque le Dockerfile ou la configuration Nginx change.
+
+## 2. Cycle de vie du déploiement local
+
+Le script `scripts/run-lifecycle.sh` a terminé avec le code de retour **0**. Il a exécuté les étapes du sujet et enregistré les sorties réelles dans `evidence/`.
+
+| Étape | Commande | Preuve |
+| --- | --- | --- |
+| Initialisation | `terraform init -input=false` | `evidence/01-init.log` |
+| Validation | `terraform validate` | `evidence/02-validate.log` |
+| Planification | `terraform plan -out=deployment.tfplan` | `evidence/03-plan.log` |
+| Application | `terraform apply -auto-approve deployment.tfplan` | `evidence/04-apply.log` |
+| Validation des services | `bash scripts/verify.sh` | `evidence/05-validation.log` |
+| Idempotence | `terraform plan -detailed-exitcode` | `evidence/05-idempotence.log` |
+| Destruction | `terraform destroy -auto-approve` | `evidence/06-destroy.log` |
+| État final | `terraform state list` et contrôle Docker | `evidence/07-cleanup.log` |
+
+Résultats observés :
+
+- Init : provider Docker 4.7.0 installé et backend local initialisé.
+- Validate : `Success! The configuration is valid.`
+- Plan : **4 à créer, 0 à modifier, 0 à détruire**.
+- Apply : **4 ressources ajoutées** ; conteneurs PostgreSQL et Nginx sains.
+- HTTP : réponse sur `http://localhost:8080/` contenant le message demandé.
+- PostgreSQL : connexion TCP authentifiée et `SELECT 1` réussis.
+- Idempotence : `No changes. Your infrastructure matches the configuration.` ; code de retour **0**.
+- Destroy : **4 ressources détruites**.
+- État final : `terraform.tfstate` existe avec `resources = []` ; aucun conteneur TP restant.
+
+Le plan enregistré est appliqué directement : Apply exécute donc les actions calculées par Plan. Le script vérifie le message HTTP, la santé des deux conteneurs et une connexion TCP PostgreSQL authentifiée exécutant `SELECT 1`. Une seconde planification vérifie l'idempotence : le code de retour attendu est `0`, contre `2` si des changements sont encore nécessaires.
+
+Le nettoyage supprime les conteneurs, leurs volumes anonymes et la ressource image de l'application. L'image PostgreSQL reste en cache avec `keep_locally = true`. Le cache Docker et l'image Alpine peuvent aussi rester : ils ne correspondent pas à des conteneurs applicatifs actifs.
+
+## 3. Automatisation CI/CD
+
+Le fichier `.github/workflows/main.yml` déclenche le pipeline sur chaque push vers `main`. Il peut aussi être lancé manuellement. Il prépare Terraform, initialise le backend, valide la configuration, produit un plan binaire, l'applique, puis vérifie HTTP et PostgreSQL.
+
+Toutes les étapes utilisent le même runner local `self-hosted`, Linux x64, portant le label `iac-local`. L'état est stocké hors du checkout, dans `${RUNNER_WORKSPACE}/../tp-iac-state/${GITHUB_REPOSITORY}/terraform.tfstate`, afin d'être retrouvé au push suivant. Un groupe de concurrence empêche deux déploiements du projet de modifier les conteneurs simultanément.
+
+Apply n'utilise aucune condition autorisant une exécution après échec : le comportement normal de GitHub Actions l'empêche de s'exécuter si Plan échoue. Le plan contenant potentiellement des données sensibles est supprimé à la fin du job.
+
+### Validation d'une modification
+
+Le test consiste à modifier le défaut de `db_name` de `devops_db` vers `devops_db_v2`, puis à commiter et pousser ce changement sur `main`. Le résultat attendu est le remplacement du conteneur PostgreSQL et la création de la nouvelle base, suivis d'un contrôle SQL réussi.
+
+**Statut de la validation GitHub Actions :** le workflow est fourni. L'enregistrement d'un runner local est en attente d'autorisation explicite, car il donne aux workflows du dépôt un accès d'exécution à la machine et à Docker. Aucun succès distant n'est revendiqué avant l'exécution réelle du pipeline.
+
+La suppression du volume anonyme lors du remplacement rend ce test jetable. Aucun volume persistant n'est prévu dans le sujet. En contexte réel, changer une variable d'initialisation PostgreSQL ne suffit pas à modifier une base déjà initialisée conservée sur un volume.
+
+## 4. Questions d'approfondissement
+
+### 1. Quel est l'impact réel de `terraform destroy` sur `terraform.tfstate` ?
+
+`terraform destroy` demande au provider de supprimer les objets gérés, puis actualise l'état pour en retirer les ressources détruites. Il ne supprime normalement pas le fichier d'état : le fichier conserve sa structure et ses métadonnées, avec un ensemble de ressources vide si tout a été détruit. Une destruction partielle conserve les entrées nécessaires pour suivre les objets restants.
+
+L'état associe chaque adresse Terraform à l'identifiant réel de l'objet. Lors d'un plan, Terraform rafraîchit ces informations auprès du provider et les compare à la configuration pour calculer les créations, changements et suppressions. Effacer seulement le fichier d'état ne détruit aucune infrastructure et fait perdre ces associations. Les sauvegardes de l'état peuvent encore contenir les anciens secrets.
+
+### 2. Que signifie l'immuabilité de l'infrastructure ?
+
+Une infrastructure immuable se met à jour en remplaçant ses composants par de nouvelles instances issues d'une définition versionnée. On évite de modifier manuellement une instance en cours d'exécution, car ces modifications ne seraient pas reproductibles depuis le dépôt.
+
+Dans ce TP, une modification du Dockerfile reconstruit l'image grâce à son empreinte, et le conteneur utilise la nouvelle image. Modifier l'environnement du conteneur PostgreSQL provoque également son remplacement. Les données doivent être traitées séparément si elles doivent survivre à ce remplacement.
+
+### 3. Pourquoi Plan est-il une porte de contrôle avant Apply ?
+
+Plan calcule les différences entre la configuration, l'état et les objets observés. Il permet de vérifier les erreurs, les dépendances et les suppressions ou remplacements avant de modifier l'infrastructure. Il fournit ainsi une base de revue, particulièrement pour les changements destructifs en production.
+
+Appliquer le fichier de plan enregistré relie la revue aux actions exécutées. Le pipeline de ce TP impose la réussite du plan, mais n'ajoute pas d'approbation humaine. Un environnement de production peut compléter ce contrôle par une approbation, des règles de politique et une protection de branche. Un plan réussi ne garantit pas qu'Apply réussira : des erreurs d'exécution ou des changements concurrents peuvent encore survenir.
+
+### 4. Quelle ressource ajouter pour connecter les conteneurs à un réseau Docker ?
+
+Ajouter une ressource `docker_network`, puis référencer son nom depuis un bloc `networks_advanced` dans chacun des conteneurs :
+
+```hcl
+resource "docker_network" "app_network" {
+  name = "tp-iac-network"
+}
+
+# À ajouter dans chacune des deux ressources docker_container :
+# networks_advanced {
+#   name = docker_network.app_network.name
+# }
+```
+
+Un réseau bridge défini par l'utilisateur permet notamment la résolution DNS entre conteneurs par leur nom. Terraform déduit la dépendance au réseau à partir des références et supprime les conteneurs avant de détruire ce réseau.
+
+## 5. Références
+
+- Sujet fourni : « TP IaC Local .pdf ».
+- [Provider Docker : images](https://registry.terraform.io/providers/kreuzwerker/docker/latest/docs/resources/image) et [conteneurs](https://registry.terraform.io/providers/kreuzwerker/docker/latest/docs/resources/container).
+- [HashiCorp : rôle de l'état](https://developer.hashicorp.com/terraform/language/state/purpose).
+- [GitHub : configuration d'un runner self-hosted](https://docs.github.com/en/actions/how-tos/manage-runners/self-hosted-runners/add-runners).

@@ -1,0 +1,16 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+*.tfvars.json
+!terraform.tfvars.example
+.terraform.tfstate.lock.info
+crash.log
+crash.*.log
+.env
+.env.*
+!.env.example
+
+# Les journaux ajoutés au rapport sont expurgés ; les plans binaires restent privés.
+evidence/*.json

@@ -1,0 +1,11 @@
+FROM alpine:latest
+
+RUN apk add --no-cache nginx \
+    && mkdir -p /run/nginx /var/www/localhost/htdocs \
+    && printf '%s\n' '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Terraform IaC</title></head><body><h1>Application Deployed via Terraform IaC!</h1></body></html>' > /var/www/localhost/htdocs/index.html
+
+COPY nginx.conf /etc/nginx/http.d/default.conf
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

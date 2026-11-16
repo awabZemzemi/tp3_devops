@@ -1,0 +1,66 @@
+name: Terraform IaC local
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Un état et un démon Docker partagés : les déploiements restent séquentiels.
+concurrency:
+  group: tp-iac-local-deployment
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # Runner installé sur la machine Docker cible (voir README).
+    runs-on: [self-hosted, linux, x64, iac-local]
+    timeout-minutes: 20
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "false"
+      # Facultatif pour le TP : sans secret, la valeur de démonstration est utilisée.
+      TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD || 'TP_local_demo_change_me_2026!' }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.16.0"
+          terraform_wrapper: false
+
+      - name: Vérifier Docker et le format
+        run: |
+          docker info > /dev/null
+          terraform fmt -check -recursive
+
+      - name: Init avec état persistant
+        run: |
+          state_dir="${RUNNER_WORKSPACE}/../tp-iac-state/${GITHUB_REPOSITORY}"
+          mkdir -p "$state_dir"
+          chmod 700 "$state_dir"
+          terraform init -input=false -lockfile=readonly -backend-config="path=${state_dir}/terraform.tfstate"
+
+      - name: Validate
+        run: terraform validate -no-color
+
+      - name: Plan
+        run: terraform plan -input=false -lock-timeout=60s -out=deployment.tfplan
+
+      # Par défaut, une étape ne s'exécute que si les précédentes ont réussi.
+      - name: Apply du plan validé
+        run: terraform apply -auto-approve -input=false -lock-timeout=60s deployment.tfplan
+
+      - name: Validation HTTP et PostgreSQL
+        run: bash scripts/verify.sh
+
+      - name: Supprimer le plan contenant des données sensibles
+        if: always()
+        run: rm -f deployment.tfplan
