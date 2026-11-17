@@ -36,7 +36,7 @@ variable "db_port_external" {
 variable "app_port_external" {
   description = "Port HTTP sur l'hôte local, associé au port 80 du conteneur."
   type        = number
-  default     = 8080
+  default     = 8081
 
   validation {
     condition     = var.app_port_external >= 1 && var.app_port_external <= 65535 && floor(var.app_port_external) == var.app_port_external
