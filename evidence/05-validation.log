@@ -1,5 +1,0 @@
-HTTP OK : http://localhost:8080/
-<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Terraform IaC</title></head><body><h1>Application Deployed via Terraform IaC!</h1></body></html>
-tp-db-postgres : healthy
-tp-app-web : healthy
-PostgreSQL : connexion authentifiée et SELECT 1 réussis.

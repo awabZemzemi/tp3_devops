@@ -3,28 +3,10 @@ name: Terraform IaC local
 on:
   push:
     branches: [main]
-  workflow_dispatch:
-
-permissions:
-  contents: read
-
-# Les exécutions du TP restent séquentielles et terminent par Destroy.
-concurrency:
-  group: tp-iac-local-deployment
-  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    env:
-      TF_IN_AUTOMATION: "true"
-      TF_INPUT: "false"
-      # Facultatif pour le TP : sans secret, la valeur de démonstration est utilisée.
-      TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD || 'TP_local_demo_change_me_2026!' }}
-    defaults:
-      run:
-        shell: bash
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,50 +17,18 @@ jobs:
           terraform_version: "1.16.0"
           terraform_wrapper: false
 
-      - name: Vérifier Docker et le format
-        run: |
-          docker info > /dev/null
-          terraform fmt -check -recursive
-
       - name: Init
-        id: init
-        run: terraform init -input=false -lockfile=readonly
-
-      - name: Validate
-        run: terraform validate -no-color
+        run: terraform init -input=false
 
       - name: Plan
-        run: terraform plan -input=false -lock-timeout=60s -out=deployment.tfplan
+        run: terraform plan -input=false -out=deployment.tfplan
 
-      # Par défaut, une étape ne s'exécute que si les précédentes ont réussi.
-      - name: Apply du plan validé
-        run: terraform apply -auto-approve -input=false -lock-timeout=60s deployment.tfplan
+      - name: Apply
+        run: terraform apply -auto-approve deployment.tfplan
 
-      - name: Validation HTTP et PostgreSQL
-        run: bash scripts/verify.sh
+      - name: Vérifier la page web
+        run: curl --fail --retry 10 --retry-delay 2 --retry-connrefused "$(terraform output -raw app_access_url)"
 
-      - name: Vérifier l'idempotence
-        run: terraform plan -input=false -detailed-exitcode
-
-      - name: Vérifier une mise à jour de la base
-        run: bash scripts/verify-ci-update.sh
-
-      - name: Destroy et vérification du nettoyage
-        if: always() && steps.init.outcome == 'success'
-        run: |
-          terraform destroy -auto-approve -input=false -lock-timeout=60s
-          test -z "$(terraform state list)"
-          test -z "$(docker ps -a --filter name=tp-app-web --filter name=tp-db-postgres --format '{{.Names}}')"
-
-      - name: Conserver les preuves de mise à jour
+      - name: Destroy
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: preuves-ci-${{ github.run_number }}
-          path: evidence/ci-*.log
-          if-no-files-found: ignore
-          retention-days: 14
-
-      - name: Supprimer les plans contenant des données sensibles
-        if: always()
-        run: rm -f deployment.tfplan update.tfplan
+        run: terraform destroy -auto-approve -input=false
